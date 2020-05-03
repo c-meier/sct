@@ -18,7 +18,6 @@ object MainApp {
 //    def methodToImplement() = ???
     //!]
 
-
     //![-
 //    // TODO: Some instruction given to the students, but missing from the correction.    
     //!]
@@ -42,7 +41,6 @@ object MainApp {
     def methodToImplement() = ???
     //!]
 
-
     //![-
     // TODO: Some instruction given to the students, but missing from the correction.    
     //!]
@@ -62,7 +60,6 @@ import spark
 object MainApp {
     def methodToImplement() = ???
 
-
     // TODO: Some instruction given to the students, but missing from the correction.    
     def main(args: Array[String]) {
     }
@@ -77,9 +74,16 @@ import spark
 object MainApp {
     def methodToImplement() = someImplementation
 
-
     def main(args: Array[String]) {
         Code only available in the correction, with no alternative for student.
     }
 }
+```
+
+## Tip
+
+If you want to transform every scala file in a directory into its student version, you can use the following command:
+
+```sh
+fd -e scala -x sh -c "sct -so {} | sponge {}"
 ```
