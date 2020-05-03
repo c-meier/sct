@@ -4,13 +4,11 @@ import System.Exit
 import System.Environment
 import Data.List
 import Data.Char
---import qualified Data.Text as DT
 import Control.Monad
 import Text.Printf
 
 main = do
     (args, files) <- getArgs >>= parse
---    when (Unbuffered `elem` args) $ hSetBuffering stdout NoBuffering
     mapM_ (sct args) files
 
 -- Apply function f on every line of a file s and output the transformation
@@ -59,34 +57,12 @@ tagLines zone (l:ls)
     where
       (isSwitch, newZone) = lineSwitchInfo (trim l)
 
-printLineZone (CorrectionZone , l) = "CZ:" ++ l
-printLineZone (StudentZone , l) = "SZ:" ++ l
-printLineZone (AllZone , l) = "AZ:" ++ l
-printLineZone (SwitchZone , l) = "TZ:" ++ l
-
---render Squeeze   = map head. groupBy (\x y -> all (all isSpace) [x,y])
---render Tabs      = map $ concatMap (\c -> if c == '\t' then "^I" else [c])
---render Invisible = map $ concatMap visible
---  where
---    visible c | c == '\t' || isPrint c = [c]
---              | otherwise              = init . tail . show $ c
---render _ = id
---
---numberLine      = printf "%6d  %s"
---numberAll s     = zipWith numberLine [(1 :: Integer)..] s
---numberSome s    = reverse . snd $ foldl' draw (1,[]) s
---  where
---    draw (n,acc) s
---            | all isSpace s = (n,   s : acc)
---            | otherwise     = (n+1, numberLine n s : acc)
-
-
 data Flag
-    = Only               -- -o --only
-    | Student            -- -s --student
-    | Correction         -- -c --correction
-    | Version            -- -V --version
-    | Help               -- --help
+    = Only        -- -o --only
+    | Student     -- -s --student
+    | Correction  -- -c --correction
+    | Version     -- -V --version
+    | Help        -- --help
     deriving (Eq,Ord,Enum,Show,Bounded)
 
 flags =
@@ -126,6 +102,4 @@ parse argv = case getOpt Permute flags argv of
                    "       sct -V\n" ++
                    "       sct --help"
           version = "Student Correction Transformer (sct) v0.1"     
---          set Dollar = [Dollar, Invisible]
---          set Tabs   = [Tabs,   Invisible]
           set f      = [f]
