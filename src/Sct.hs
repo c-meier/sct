@@ -1,36 +1,39 @@
-module Sct 
+module Sct
     ( sct
     ) where
 
-import System.FilePath
 import ArgsParsing(Flag(..))
+import SctConfig(Config(..), Tag(..))
 import Data.List
 import Data.Char
 import Data.Maybe
 
--- Apply function f on every line of a file s and output the transformation
-withAFile s f = putStr . unlines . f . lines =<< open s
-  where
-    open f = if f == "-" then getContents else readFile f
 
-sct :: [Flag] -> [Char] -> IO ()
-sct [] file = withAFile file id
-sct flags file = withAFile file (removeTag . ifonly . toggleZone . tagLines cmdPrefix AllZone)
+-- | Apply student correction transformer on all lines
+sct :: Config -> [String] -> [String]
+sct config = removeZone . removeOtherZone . toggleZone . tagLines (cmdPrefix config) AllZone
   where
-    removeTag s  = map snd s
-    toggleZone s = ifset Student (map (toggleComment lineComment)) s
-    ifonly s     = ifset Only (filter (isNotZone zone) . filter (isNotZone SwitchZone)) s
-    zone         = if Student `elem` flags then CorrectionZone else StudentZone
-    ifset a f    = if a `elem` flags then f else id
-    (lineComment, cmdPrefix) = divineCmdPrefix (takeExtension file)
+    removeZone s      = map snd s
+    toggleZone s      = ifcond (tag == Student) (map (toggleComment (lineComment config))) s
+    removeOtherZone s = ifcond (only config) (filter (tagMatchZone tag . fst)) s
+    tag               = wantedTag config
 
-divineCmdPrefix :: String -> (String, String)
-divineCmdPrefix ".sctignore" = ("#", "##!")
-divineCmdPrefix extension = ("//", "//!")
+
+ifcond :: Bool -> (a -> a) -> a -> a
+ifcond a f = if a then f else id
+
+tagMatchZone tag AllZone = True
+tagMatchZone Student StudentZone = True
+tagMatchZone Correction CorrectionZone = True
+tagMatchZone tag zone = False
 
 isNotZone zone (z, _) = z /= zone
+
+-- | Remove white space at the beginning and the end of a string
+trim :: String -> String
 trim = dropWhileEnd isSpace . dropWhile isSpace
 
+-- | Comments CorrectionZone and uncomments StudentZone
 toggleComment lineComment (CorrectionZone, line) = (CorrectionZone, lineComment ++ line)
 toggleComment lineComment x@(StudentZone, line)
     = (StudentZone, fromMaybe line (stripPrefix lineComment line))
@@ -40,9 +43,10 @@ data Zone
     = CorrectionZone
     | StudentZone
     | AllZone
-    | SwitchZone
+    | CommandZone
     deriving (Eq, Ord, Enum, Show, Bounded)
 
+-- | Indicate if the line is a command and the next zone
 lineSwitchInfo cmdPrefix line = case cmd of
                         Just "["  -> (True, CorrectionZone)
                         Just "[-" -> (True, StudentZone)
@@ -54,10 +58,11 @@ lineSwitchInfo cmdPrefix line = case cmd of
     where
         cmd = stripPrefix cmdPrefix line
 
+-- | Annotate each line with the Zone to which it belongs
 tagLines :: String -> Zone -> [String] -> [(Zone, String)]
 tagLines cmdPrefix zone [] = []
 tagLines cmdPrefix zone (l:ls)
-    | isSwitch = (SwitchZone, l) : tagLines cmdPrefix newZone ls
+    | isSwitch = (CommandZone, l) : tagLines cmdPrefix newZone ls
     | otherwise = (zone, l) : tagLines cmdPrefix zone ls
     where
       (isSwitch, newZone) = lineSwitchInfo cmdPrefix (trim l)
