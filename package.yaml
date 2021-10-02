@@ -1,5 +1,5 @@
 name:                student-correction-transformer
-version:             0.2.1.0
+version:             0.2.1.1
 github:              "c-meier/sct"
 license:             BSD3
 author:              "Christopher Meier"
@@ -22,6 +22,8 @@ description:         Please see the README on GitHub at <https://github.com/c-me
 dependencies:
 - base >= 4.7 && < 5
 - filepath
+- tasty
+- tasty-hunit
 
 library:
   source-dirs: src

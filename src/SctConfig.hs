@@ -1,6 +1,7 @@
 module SctConfig
     ( Config(..)
     , generateConfig
+    , divineCmdPrefix
     , Tag(..)
     ) where
 

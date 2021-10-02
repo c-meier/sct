@@ -1,5 +1,8 @@
 module Sct
     ( sct
+    , Zone(..)
+    , tagLines
+    , trim
     ) where
 
 import ArgsParsing(Flag(..))
@@ -11,12 +14,12 @@ import Data.Maybe
 
 -- | Apply student correction transformer on all lines
 sct :: Config -> [String] -> [String]
-sct config = removeZone . removeOtherZone . toggleZone . tagLines (cmdPrefix config) AllZone
+sct config = removeZone . removeOtherZone . toggleZone . tagLines (cmdPrefix config)
   where
-    removeZone s      = map snd s
-    toggleZone s      = ifcond (tag == Student) (map (toggleComment (lineComment config))) s
-    removeOtherZone s = ifcond (only config) (filter (tagMatchZone tag . fst)) s
-    tag               = wantedTag config
+    removeZone      = map snd
+    toggleZone      = ifcond (tag == Student) (map (toggleComment (lineComment config)))
+    removeOtherZone = ifcond (only config) (filter (tagMatchZone tag . fst))
+    tag             = wantedTag config
 
 
 ifcond :: Bool -> (a -> a) -> a -> a
@@ -43,26 +46,21 @@ data Zone
     = CorrectionZone
     | StudentZone
     | AllZone
-    | CommandZone
-    deriving (Eq, Ord, Enum, Show, Bounded)
+    | CommandZone Zone
+    deriving (Eq, Ord, Show)
 
 -- | Indicate if the line is a command and the next zone
-lineSwitchInfo cmdPrefix line = case cmd of
-                        Just "["  -> (True, CorrectionZone)
-                        Just "[-" -> (True, StudentZone)
-                        Just "-"  -> (True, StudentZone)
-                        Just "-]" -> (True, AllZone)
-                        Just "]"  -> (True, AllZone)
-                        Just _    -> (False, AllZone)
-                        Nothing   -> (False, AllZone)
+lineSwitchInfo cmdPrefix (prevZone, _) line = case cmd of
+                        Just "["  -> (CommandZone CorrectionZone, line)
+                        Just "[-" -> (CommandZone StudentZone, line)
+                        Just "-"  -> (CommandZone StudentZone, line)
+                        Just "-]" -> (CommandZone AllZone, line)
+                        Just "]"  -> (CommandZone AllZone, line)
+                        _         -> case prevZone of
+                          CommandZone zone -> (zone, line)
+                          zone -> (zone, line)
     where
-        cmd = stripPrefix cmdPrefix line
+        cmd = stripPrefix cmdPrefix (trim line)
 
 -- | Annotate each line with the Zone to which it belongs
-tagLines :: String -> Zone -> [String] -> [(Zone, String)]
-tagLines cmdPrefix zone [] = []
-tagLines cmdPrefix zone (l:ls)
-    | isSwitch = (CommandZone, l) : tagLines cmdPrefix newZone ls
-    | otherwise = (zone, l) : tagLines cmdPrefix zone ls
-    where
-      (isSwitch, newZone) = lineSwitchInfo cmdPrefix (trim l)
+tagLines cmdPrefix = tail . scanl (lineSwitchInfo cmdPrefix) (AllZone, "")

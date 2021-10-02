@@ -98,4 +98,5 @@ DEST_DIR="../student2021"; fd -t f --ignore-file=<(sct -so .sctignore) -x sh -c 
 
 ```sh
 cabal install exe:sct --install-method=copy --overwrite-policy=always --installdir=dist
+stack install --local-bin-path=dist
 ```
