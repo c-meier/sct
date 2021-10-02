@@ -1,0 +1,49 @@
+name:                student-correction-transformer
+version:             0.2.0.0
+github:              "c-meier/sct"
+license:             BSD3
+author:              "Christopher Meier"
+maintainer:          "christopher.meier@heig-vd.ch"
+copyright:           "MIT"
+
+extra-source-files:
+- README.md
+- ChangeLog.md
+
+# Metadata used when publishing your package
+# synopsis:            Short description of your package
+# category:            teaching
+
+# To avoid duplicated efforts in documentation and dealing with the
+# complications of embedding Haddock markup inside cabal files, it is
+# common to point users to the README.md file.
+description:         Please see the README on GitHub at <https://github.com/c-meier/sct#readme>
+
+dependencies:
+- base >= 4.7 && < 5
+- filepath
+
+library:
+  source-dirs: src
+
+executables:
+  sct:
+    main:                Main.hs
+    source-dirs:         app
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - student-correction-transformer
+
+tests:
+  student-correction-transformer-test:
+    main:                Spec.hs
+    source-dirs:         test
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - student-correction-transformer

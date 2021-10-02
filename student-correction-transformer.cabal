@@ -1,0 +1,65 @@
+cabal-version: 1.12
+
+-- This file has been generated from package.yaml by hpack version 0.34.4.
+--
+-- see: https://github.com/sol/hpack
+
+name:           student-correction-transformer
+version:        0.2.0.0
+description:    Please see the README on GitHub at <https://github.com/c-meier/sct#readme>
+homepage:       https://github.com/c-meier/sct#readme
+bug-reports:    https://github.com/c-meier/sct/issues
+author:         Christopher Meier
+maintainer:     christopher.meier@heig-vd.ch
+copyright:      MIT
+license:        BSD3
+license-file:   LICENSE
+build-type:     Simple
+extra-source-files:
+    README.md
+    ChangeLog.md
+
+source-repository head
+  type: git
+  location: https://github.com/c-meier/sct
+
+library
+  exposed-modules:
+      ArgsParsing
+      Lib
+      Sct
+  other-modules:
+      Paths_student_correction_transformer
+  hs-source-dirs:
+      src
+  build-depends:
+      base >=4.7 && <5
+    , filepath
+  default-language: Haskell2010
+
+executable sct
+  main-is: Main.hs
+  other-modules:
+      Paths_student_correction_transformer
+  hs-source-dirs:
+      app
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      base >=4.7 && <5
+    , filepath
+    , student-correction-transformer
+  default-language: Haskell2010
+
+test-suite student-correction-transformer-test
+  type: exitcode-stdio-1.0
+  main-is: Spec.hs
+  other-modules:
+      Paths_student_correction_transformer
+  hs-source-dirs:
+      test
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      base >=4.7 && <5
+    , filepath
+    , student-correction-transformer
+  default-language: Haskell2010
