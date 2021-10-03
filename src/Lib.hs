@@ -2,6 +2,9 @@ module Lib
     ( mainEntry
     ) where
 
+import qualified Data.Text as T
+import qualified Data.Text.IO as TIO
+
 import ArgsParsing(parse)
 import Sct(sct)
 import SctConfig (generateConfig)
@@ -14,6 +17,6 @@ mainEntry = do
     withAFile file (sct config)
 
 -- Apply function f on all lines of a file s and output the transformation
-withAFile path func = putStr . unlines . func . lines =<< open path
+withAFile path func = TIO.putStr . T.unlines . func . T.lines =<< open path
   where
-    open filename = if filename == "-" then getContents else readFile filename
+    open filename = if filename == "-" then TIO.getContents else TIO.readFile filename
