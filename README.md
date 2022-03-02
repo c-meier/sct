@@ -85,13 +85,13 @@ object MainApp {
 If you want to transform every scala file in a directory into its student version, you can use the following command:
 
 ```sh
-fd -e scala --ignore-file=<(sct -so .sctignore) -x sh -c "sct -so {} | sponge {}"
+fd -e scala -H --ignore-file=<(sct -so .sctignore) -x sh -c "sct -so {} | sponge {}"
 ```
 
 If you want to copy a transformed hierarchy of files into a new directory, you can use the following command:
 
 ```sh
-DEST_DIR="../student2021"; fd -t f --ignore-file=<(sct -so .sctignore) -x sh -c "mkdir -p $DEST_DIR/{//}; sct -so {} > $DEST_DIR/{}"
+DEST_DIR="../student2021"; fd -t f -H --ignore-file=<(sct -so .sctignore) -x sh -c "mkdir -p $DEST_DIR/{//}; sct -so {} > $DEST_DIR/{}"
 ```
 
 ## Build haskell

@@ -11,6 +11,8 @@ module SctConfig
 import qualified ArgsParsing as AP
 import System.FilePath
 import qualified Data.Text as T
+import Control.Arrow (Arrow(first))
+import Data.Maybe (listToMaybe)
 
 data Tag
     = Student
@@ -27,18 +29,20 @@ data Config = Config
     { langSpec :: LangSpec
     , only :: Bool 
     , wantedTag :: Tag
+    , context :: Maybe T.Text
     } deriving (Show)
 
 generateConfig :: [AP.Flag] -> String -> Config
-generateConfig flags file = Config {langSpec = lang, only = AP.Only `elem` flags, wantedTag = wantedTag}
+generateConfig flags file = Config {langSpec = lang, only = AP.Only `elem` flags, wantedTag = wantedTag, context = contextArg}
     where
         wantedTag = if AP.WantStudent `elem` flags then Student else Correction
         lang = divineLangSpec file
-        ifset a v d = if a `elem` flags then v else d
+        contextArg = listToMaybe [ T.pack x | AP.Context  x <- flags ]
 
 divineLangSpec filename = getLangSpec (takeExtension filename)
 
 getLangSpec :: String -> LangSpec
 getLangSpec ".sctignore" = LangSpec "#" "##!" ""
+getLangSpec ".py" = LangSpec "#" "##!" ""
 getLangSpec ".xml" = LangSpec "<!--" "<!--!" "-->"
 getLangSpec extension = LangSpec "//" "//!" ""

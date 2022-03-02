@@ -16,9 +16,10 @@ data Flag
     = Only        -- -o --only
     | WantStudent     -- -s --student
     | WantCorrection  -- -c --correction
+    | Context String  -- -t --context
     | Version     -- -V --version
     | Help        -- --help
-    deriving (Eq,Ord,Enum,Show,Bounded)
+    deriving (Eq,Ord,Show)
 
 flags =
    [Option ['o'] ["only"]        (NoArg Only)
@@ -27,6 +28,8 @@ flags =
         "Print the student version. Incompatible with --correction."
    ,Option ['c'] ["correction"]  (NoArg WantCorrection)
         "Print the corrected version. Incompatible with --student."
+   ,Option ['t'] ["context"]         (ReqArg Context "CONTEXT")
+        "Context to be shown."
    ,Option ['V'] ["version"]     (NoArg Version)
         "Show the version of the application."
    ,Option []    ["help"]        (NoArg Help)
@@ -43,8 +46,8 @@ parse argv = case getOpt Permute flags argv of
         hPutStrLn stderr (concat errs ++ usageInfo header flags)
         exitWith (ExitFailure 1)
 
-    where header = "Usage: sct -s [-o] [file]\n" ++
-                   "       sct [-co] [file]\n" ++
+    where header = "Usage: sct -s [-o] [-t CONTEXT] [file]\n" ++
+                   "       sct [-co] [-t CONTEXT] [file]\n" ++
                    "       sct -V\n" ++
                    "       sct --help"
           textversion = "Student Correction Transformer (sct) " ++ showVersion version

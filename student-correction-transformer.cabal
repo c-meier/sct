@@ -5,7 +5,7 @@ cabal-version: 1.12
 -- see: https://github.com/sol/hpack
 
 name:           student-correction-transformer
-version:        0.2.2.0
+version:        0.3.0.0
 description:    Please see the README on GitHub at <https://github.com/c-meier/sct#readme>
 homepage:       https://github.com/c-meier/sct#readme
 bug-reports:    https://github.com/c-meier/sct/issues
