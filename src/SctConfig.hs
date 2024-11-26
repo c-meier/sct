@@ -43,6 +43,8 @@ divineLangSpec filename = getLangSpec (takeExtension filename)
 
 getLangSpec :: String -> LangSpec
 getLangSpec ".sctignore" = LangSpec "#" "##!" ""
+getLangSpec ".gitignore" = LangSpec "#" "##!" ""
 getLangSpec ".py" = LangSpec "#" "##!" ""
 getLangSpec ".xml" = LangSpec "<!--" "<!--!" "-->"
+getLangSpec ".sql" = LangSpec "--" "--!" ""
 getLangSpec extension = LangSpec "//" "//!" ""
