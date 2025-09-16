@@ -58,7 +58,7 @@ jobs:
         mkdir dist
         cabal install exe:sct --install-method=copy --overwrite-policy=always --installdir=dist
     - name: Compress binary
-      uses: svenstaro/upx-action@2.0.1
+      uses: svenstaro/upx-action@v2
       with:
         file: ./dist/sct${{ matrix.os == 'windows-latest' && '.exe' || '' }}
     - name: Upload Release Asset
