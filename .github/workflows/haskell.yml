@@ -34,11 +34,11 @@ jobs:
       matrix:
         os: [ubuntu-latest, macOS-latest, windows-latest]
         ghc:
-          - "9.2.1"
-        cabal: ["3.6.2.0"]
+          - "8.10"
+        cabal: ["latest"]
     steps:
     - uses: actions/checkout@v4    
-    - uses: haskell/actions/setup@v1.2
+    - uses: haskell-actions/setup@v2
       id: setup-haskell-cabal
       name: Setup Haskell
       with:
