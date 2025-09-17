@@ -60,7 +60,7 @@ jobs:
         mkdir dist
         cabal install exe:sct --install-method=copy --overwrite-policy=always --installdir=dist
     - name: Compress binary
-      if: matrix.os == 'macOS-latest'
+      if: matrix.os != 'macOS-latest'
       uses: svenstaro/upx-action@v2
       with:
         file: ./dist/sct${{ matrix.os == 'windows-latest' && '.exe' || '' }}
