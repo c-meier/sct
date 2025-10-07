@@ -45,6 +45,8 @@ getLangSpec :: String -> LangSpec
 getLangSpec ".sctignore" = LangSpec "#" "##!" ""
 getLangSpec ".gitignore" = LangSpec "#" "##!" ""
 getLangSpec ".py" = LangSpec "#" "##!" ""
+getLangSpec ".yaml" = LangSpec "#" "##!" ""
+getLangSpec ".yml" = getLangSpec ".yaml"
 getLangSpec ".xml" = LangSpec "<!--" "<!--!" "-->"
 getLangSpec ".sql" = LangSpec "--" "--!" ""
 getLangSpec extension = LangSpec "//" "//!" ""
