@@ -25,15 +25,16 @@ data LangSpec = LangSpec
     , commentSuffix :: T.Text
     } deriving (Show, Eq)
 
-data Config = Config 
+data Config = Config
     { langSpec :: LangSpec
-    , only :: Bool 
+    , only :: Bool
     , wantedTag :: Tag
     , context :: Maybe T.Text
+    , formatterSpace :: Bool
     } deriving (Show)
 
 generateConfig :: [AP.Flag] -> String -> Config
-generateConfig flags file = Config {langSpec = lang, only = AP.Only `elem` flags, wantedTag = wantedTag, context = contextArg}
+generateConfig flags file = Config {langSpec = lang, only = AP.Only `elem` flags, wantedTag = wantedTag, context = contextArg, formatterSpace = AP.FormatterSpace `elem` flags}
     where
         wantedTag = if AP.WantStudent `elem` flags then Student else Correction
         lang = divineLangSpec file

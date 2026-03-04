@@ -17,13 +17,15 @@ import Data.Maybe
 
 -- | Apply student correction transformer on all lines
 sct :: Config -> [T.Text] -> [T.Text]
-sct config = removeZone . removeOtherZone . toggleZone . removeOtherContext . tagLines (langSpec config)
+sct config inputLines = removeZone . removeOtherZone . toggleZone . removeOtherContext . tagLines lang $ inputLines
   where
+    lang            = langSpec config
+    tag             = wantedTag config
+    fmtSpace        = formatterSpace config || hasFormatterSpaceDirective lang inputLines
     removeZone      = map snd
-    toggleZone      = ifcond (tag == Student) (map (toggleComment (langSpec config)))
+    toggleZone      = ifcond (tag == Student) (map (toggleComment lang fmtSpace))
     removeOtherZone = ifcond (only config) (filter (tagMatchZone tag . fst))
     removeOtherContext = filter (contextMatchZone (context config) . fst)
-    tag             = wantedTag config
 
 
 ifcond :: Bool -> (a -> a) -> a -> a
@@ -51,15 +53,18 @@ contextMatchZone _ zone = False
 isNotZone zone (z, _) = z /= zone
 
 -- | Comments CorrectionZone and uncomments StudentZone
-toggleComment :: LangSpec -> (Zone, T.Text) -> (Zone, T.Text)
-toggleComment LangSpec{commentPrefix=cPrefix, commentSuffix=cSuffix} (CorrectionZone ts, line) = (CorrectionZone ts, T.concat [spaces, cPrefix, rest, cSuffix])
+toggleComment :: LangSpec -> Bool -> (Zone, T.Text) -> (Zone, T.Text)
+toggleComment LangSpec{commentPrefix=cPrefix, commentSuffix=cSuffix} _ (CorrectionZone ts, line) = (CorrectionZone ts, T.concat [spaces, cPrefix, rest, cSuffix])
     where (spaces, rest) = T.span isSpace line
-toggleComment LangSpec{commentPrefix=cPrefix, commentSuffix=cSuffix} x@(StudentZone ts, line)
-    = (StudentZone ts, T.append spaces ((defaultToArg (T.stripSuffix cSuffix) . defaultToArg (T.stripPrefix cPrefix)) rest))
+toggleComment LangSpec{commentPrefix=cPrefix, commentSuffix=cSuffix} fmtSpace (StudentZone ts, line)
+    = (StudentZone ts, T.append spaces (stripSuffix . stripSpace . stripPrefix $ rest))
     where
         (spaces, rest) = T.span isSpace line
         defaultToArg maybeFunc arg = fromMaybe arg (maybeFunc arg)
-toggleComment _ x = x
+        stripPrefix = defaultToArg (T.stripPrefix cPrefix)
+        stripSuffix = defaultToArg (T.stripSuffix cSuffix)
+        stripSpace  = if fmtSpace then defaultToArg (T.stripPrefix " ") else id
+toggleComment _ _ x = x
 
 data Zone
     = CorrectionZone [[T.Text]]
@@ -100,6 +105,10 @@ lineSwitchInfo LangSpec{cmdPrefix = cmdPrefix, commentSuffix = cSuffix} (prevZon
             Just (T.stripPrefix "["  -> Just _) -> CommandZone (CorrectionZone nextContexts)
             Just (T.stripPrefix "-"  -> Just _) -> CommandZone (StudentZone nextContexts)
             Just (T.stripPrefix "]"  -> Just _) -> CommandZone (AllZone nextContexts)
+            Just (T.stripPrefix "set " -> Just _) -> CommandZone (case prevZone of -- Set directive
+                ContextZone z -> z
+                CommandZone z -> z
+                z -> z)
             Just (T.stripPrefix "@ " -> Just contextsText) -> -- Tags command
                 let contexts = splitContexts contextsText in contextZone prevZone (mergeContexts contexts)
             Just (T.stripPrefix "@" -> Just _) -> contextZone prevZone tail -- Tags end command
@@ -111,3 +120,13 @@ lineSwitchInfo LangSpec{cmdPrefix = cmdPrefix, commentSuffix = cSuffix} (prevZon
 -- | Annotate each line with the Zone to which it belongs
 tagLines :: LangSpec -> [T.Text] -> [(Zone, T.Text)]
 tagLines lang = tail . scanl (lineSwitchInfo lang) (AllZone [], T.pack "")
+
+-- | Check if any line contains a 'set formatter-space' directive
+hasFormatterSpaceDirective :: LangSpec -> [T.Text] -> Bool
+hasFormatterSpaceDirective LangSpec{cmdPrefix = prefix, commentSuffix = suffix} = any isDirective
+    where
+        isDirective line = extractCmd line == Just "formatter-space"
+        extractCmd = fmap (head' . T.words) . (T.stripPrefix "set " =<<) . T.stripPrefix prefix . T.strip . defaultToArg (T.stripSuffix suffix) . T.strip
+        defaultToArg maybeFunc arg = fromMaybe arg (maybeFunc arg)
+        head' (x:_) = x
+        head' []    = T.empty

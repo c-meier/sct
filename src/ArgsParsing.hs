@@ -17,6 +17,7 @@ data Flag
     | WantStudent     -- -s --student
     | WantCorrection  -- -c --correction
     | Context String  -- -t --context
+    | FormatterSpace  -- --formatter-space
     | Version     -- -V --version
     | Help        -- --help
     deriving (Eq,Ord,Show)
@@ -30,6 +31,8 @@ flags =
         "Print the corrected version. Incompatible with --student."
    ,Option ['t'] ["context"]         (ReqArg Context "CONTEXT")
         "Context to be shown."
+   ,Option []    ["formatter-space"] (NoArg FormatterSpace)
+        "Strip one optional space after the comment prefix when uncommenting."
    ,Option ['V'] ["version"]     (NoArg Version)
         "Show the version of the application."
    ,Option []    ["help"]        (NoArg Help)
@@ -46,8 +49,8 @@ parse argv = case getOpt Permute flags argv of
         hPutStrLn stderr (concat errs ++ usageInfo header flags)
         exitWith (ExitFailure 1)
 
-    where header = "Usage: sct -s [-o] [-t CONTEXT] [file]\n" ++
-                   "       sct [-co] [-t CONTEXT] [file]\n" ++
+    where header = "Usage: sct -s [-o] [--formatter-space] [-t CONTEXT] [file]\n" ++
+                   "       sct [-co] [--formatter-space] [-t CONTEXT] [file]\n" ++
                    "       sct -V\n" ++
                    "       sct --help"
           textversion = "Student Correction Transformer (sct) " ++ showVersion version

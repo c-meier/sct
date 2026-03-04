@@ -12,7 +12,7 @@ import Sct (Zone(ContextZone))
 
 main = defaultMain tests
 
-tests = testGroup "Tests" [tagLinesTests, configTests, sctTests]
+tests = testGroup "Tests" [tagLinesTests, configTests, sctTests, formatterSpaceTests]
 
 javaLangSpec = LangSpec "//" "//!" ""
 ignoreLangSpec = LangSpec "#" "##!" ""
@@ -94,13 +94,32 @@ tagLinesTests = testGroup "TagLines spec"
 
     , testCase "Correctly tag command with discarded text (python style)" $
         checkTagLines ignoreLangSpec [(CommandZone (CorrectionZone []), "##![ teacher code below")]
+
+    , testCase "Correctly tag set directive as CommandZone" $
+        checkTagLines javaLangSpec [(CommandZone (AllZone []), "//!set formatter-space")]
+
+    , testCase "Correctly tag set directive preserves current zone" $
+        checkTagLines javaLangSpec
+            [ (CommandZone (StudentZone []), "//!-")
+            , (CommandZone (StudentZone []), "//!set formatter-space")
+            , (StudentZone [], "//hello student")
+            ]
+
+    , testCase "Correctly tag set directive with python syntax" $
+        checkTagLines ignoreLangSpec [(CommandZone (AllZone []), "##!set formatter-space")]
     ]
 
 
 javaConfig :: Bool -> Tag -> Config
-javaConfig only tag = Config javaLangSpec only tag Nothing
+javaConfig only tag = Config javaLangSpec only tag Nothing False
 
 sctTests = testGroup "Sct spec" [javaFileTests, javaFileWithContextsTests, xmlFileTests, pythonFileTests]
+
+javaConfigFmt :: Bool -> Tag -> Config
+javaConfigFmt only tag = Config javaLangSpec only tag Nothing True
+
+pythonConfigFmt :: Bool -> Tag -> Config
+pythonConfigFmt only tag = Config pythonLangSpec only tag Nothing True
 
 javaFileTests = testGroup "for java files"
     [ testCase "Correctly transform entry when only student" $
@@ -184,7 +203,7 @@ javaFileTests = testGroup "for java files"
                 ]
 
 javaConfigWithContext :: Bool -> Tag -> Maybe T.Text -> Config
-javaConfigWithContext = Config javaLangSpec
+javaConfigWithContext only tag ctx = Config javaLangSpec only tag ctx False
 
 javaFileWithContextsTests = testGroup "for java files with contexts"
     [ testCase "Correctly transform entry when only student with no context" $
@@ -246,7 +265,7 @@ javaFileWithContextsTests = testGroup "for java files with contexts"
                 , "}"
                 ]
 
-xmlConfig only tag = Config xmlLangSpec only tag Nothing
+xmlConfig only tag = Config xmlLangSpec only tag Nothing False
 
 xmlFileTests = testGroup "for xml files"
     [ testCase "Correctly transform entry when only student" $
@@ -294,7 +313,7 @@ xmlFileTests = testGroup "for xml files"
 pythonLangSpec = LangSpec "#" "##!" ""
 
 pythonConfig :: Bool -> Tag -> Config
-pythonConfig only tag = Config pythonLangSpec only tag Nothing
+pythonConfig only tag = Config pythonLangSpec only tag Nothing False
 
 pythonFileTests = testGroup "for python files"
     [ testCase "Correctly transform python entry with discarded text when only student" $
@@ -328,6 +347,140 @@ pythonFileTests = testGroup "for python files"
                 , "    ##!] end"
                 , "    common_code()"
                 ]
+
+formatterSpaceTests = testGroup "Formatter space"
+    [ testGroup "via CLI flag"
+        [ testCase "Strip one space after comment prefix when uncommenting (only student)" $
+            sct (javaConfigFmt True Student) javaFmtEntry @?=
+                [ "hello all {"
+                , "    hello student"
+                , "    goodbye all"
+                , "}"
+                ]
+
+        , testCase "Preserve space when formatter-space is off (only student)" $
+            sct (javaConfig True Student) javaFmtEntry @?=
+                [ "hello all {"
+                , "     hello student"
+                , "    goodbye all"
+                , "}"
+                ]
+
+        , testCase "Strip only one space, preserve extras (only student)" $
+            sct (javaConfigFmt True Student) javaFmtEntryDoubleSpace @?=
+                [ "hello all {"
+                , "     hello student"
+                , "    goodbye all"
+                , "}"
+                ]
+
+        , testCase "No space to strip (only student)" $
+            sct (javaConfigFmt True Student) javaFmtEntryNoSpace @?=
+                [ "hello all {"
+                , "    hello student"
+                , "    goodbye all"
+                , "}"
+                ]
+
+        , testCase "Python with formatter-space (only student)" $
+            sct (pythonConfigFmt True Student) pythonFmtEntry @?=
+                [ "def main():"
+                , "    greeting = f\"Hello student, {name}!\""
+                , "    common_code()"
+                ]
+        ]
+
+    , testGroup "via file directive"
+        [ testCase "Directive enables formatter-space (only student)" $
+            sct (javaConfig True Student) javaDirectiveEntry @?=
+                [ "hello all {"
+                , "    hello student"
+                , "    goodbye all"
+                , "}"
+                ]
+
+        , testCase "Directive filtered with only (student)" $
+            sct (javaConfig False Student) javaDirectiveEntry @?=
+                [ "//!set formatter-space"
+                , "hello all {"
+                , "    //!["
+                , "    //hello teacher"
+                , "    //!-"
+                , "    hello student"
+                , "    //!]"
+                , "    goodbye all"
+                , "}"
+                ]
+
+        , testCase "Python directive enables formatter-space (only student)" $
+            sct (pythonConfig True Student) pythonDirectiveEntry @?=
+                [ "def main():"
+                , "    greeting = f\"Hello student, {name}!\""
+                , "    common_code()"
+                ]
+        ]
+    ]
+    where
+        javaFmtEntry =
+            [ "hello all {"
+            , "    //!["
+            , "    hello teacher"
+            , "    //!-"
+            , "    // hello student"
+            , "    //!]"
+            , "    goodbye all"
+            , "}"
+            ]
+        javaFmtEntryDoubleSpace =
+            [ "hello all {"
+            , "    //!["
+            , "    hello teacher"
+            , "    //!-"
+            , "    //  hello student"
+            , "    //!]"
+            , "    goodbye all"
+            , "}"
+            ]
+        javaFmtEntryNoSpace =
+            [ "hello all {"
+            , "    //!["
+            , "    hello teacher"
+            , "    //!-"
+            , "    //hello student"
+            , "    //!]"
+            , "    goodbye all"
+            , "}"
+            ]
+        pythonFmtEntry =
+            [ "def main():"
+            , "    ##!["
+            , "    greeting = f\"Hello, {name}!\""
+            , "    ##!-"
+            , "    # greeting = f\"Hello student, {name}!\""
+            , "    ##!]"
+            , "    common_code()"
+            ]
+        javaDirectiveEntry =
+            [ "//!set formatter-space"
+            , "hello all {"
+            , "    //!["
+            , "    hello teacher"
+            , "    //!-"
+            , "    // hello student"
+            , "    //!]"
+            , "    goodbye all"
+            , "}"
+            ]
+        pythonDirectiveEntry =
+            [ "##!set formatter-space"
+            , "def main():"
+            , "    ##!["
+            , "    greeting = f\"Hello, {name}!\""
+            , "    ##!-"
+            , "    # greeting = f\"Hello student, {name}!\""
+            , "    ##!]"
+            , "    common_code()"
+            ]
 
 configTests = testGroup "Language specification"
     [ testCase "Correctly determine lang spec of .sctignore file" $
