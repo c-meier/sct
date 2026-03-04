@@ -52,10 +52,12 @@ isNotZone zone (z, _) = z /= zone
 
 -- | Comments CorrectionZone and uncomments StudentZone
 toggleComment :: LangSpec -> (Zone, T.Text) -> (Zone, T.Text)
-toggleComment LangSpec{commentPrefix=cPrefix, commentSuffix=cSuffix} (CorrectionZone ts, line) = (CorrectionZone ts, T.concat [cPrefix, line, cSuffix])
+toggleComment LangSpec{commentPrefix=cPrefix, commentSuffix=cSuffix} (CorrectionZone ts, line) = (CorrectionZone ts, T.concat [spaces, cPrefix, rest, cSuffix])
+    where (spaces, rest) = T.span isSpace line
 toggleComment LangSpec{commentPrefix=cPrefix, commentSuffix=cSuffix} x@(StudentZone ts, line)
-    = (StudentZone ts, (defaultToArg (T.stripSuffix cSuffix) . defaultToArg (T.stripPrefix cPrefix)) line)
+    = (StudentZone ts, T.append spaces ((defaultToArg (T.stripSuffix cSuffix) . defaultToArg (T.stripPrefix cPrefix)) rest))
     where
+        (spaces, rest) = T.span isSpace line
         defaultToArg maybeFunc arg = fromMaybe arg (maybeFunc arg)
 toggleComment _ x = x
 
@@ -93,11 +95,11 @@ lineSwitchInfo LangSpec{cmdPrefix = cmdPrefix, commentSuffix = cSuffix} (prevZon
             CommandZone z2 -> contextZone z2 contextsFunc
             ContextZone z2 -> contextZone z2 contextsFunc
         zone = case cmd of
-            Just "["  -> CommandZone (CorrectionZone nextContexts)
-            Just "[-" -> CommandZone (StudentZone nextContexts)
-            Just "-"  -> CommandZone (StudentZone nextContexts)
-            Just "-]" -> CommandZone (AllZone nextContexts)
-            Just "]"  -> CommandZone (AllZone nextContexts)
+            Just (T.stripPrefix "[-" -> Just _) -> CommandZone (StudentZone nextContexts)
+            Just (T.stripPrefix "-]" -> Just _) -> CommandZone (AllZone nextContexts)
+            Just (T.stripPrefix "["  -> Just _) -> CommandZone (CorrectionZone nextContexts)
+            Just (T.stripPrefix "-"  -> Just _) -> CommandZone (StudentZone nextContexts)
+            Just (T.stripPrefix "]"  -> Just _) -> CommandZone (AllZone nextContexts)
             Just (T.stripPrefix "@ " -> Just contextsText) -> -- Tags command
                 let contexts = splitContexts contextsText in contextZone prevZone (mergeContexts contexts)
             Just (T.stripPrefix "@" -> Just _) -> contextZone prevZone tail -- Tags end command

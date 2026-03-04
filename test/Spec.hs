@@ -71,18 +71,36 @@ tagLinesTests = testGroup "TagLines spec"
             ]
 
     , testCase "Correctly tag StudentZone with context inside" $
-        checkTagLines javaLangSpec 
+        checkTagLines javaLangSpec
             [ (CommandZone (StudentZone []), "//!-")
             , (ContextZone (StudentZone [[T.pack "part1"]]), "//!@ part1")
             , (StudentZone [[T.pack "part1"]], "hello student")
             ]
+
+    , testCase "Correctly tag command with discarded text (CorrectionZone)" $
+        checkTagLines javaLangSpec [(CommandZone (CorrectionZone []), "//![ some discarded text")]
+
+    , testCase "Correctly tag command with discarded text (StudentZone [-)" $
+        checkTagLines javaLangSpec [(CommandZone (StudentZone []), "//![- some discarded text")]
+
+    , testCase "Correctly tag command with discarded text (StudentZone -)" $
+        checkTagLines javaLangSpec [(CommandZone (StudentZone []), "//!- some discarded text")]
+
+    , testCase "Correctly tag command with discarded text (AllZone ])" $
+        checkTagLines javaLangSpec [(CommandZone (AllZone []), "//!] some discarded text")]
+
+    , testCase "Correctly tag command with discarded text (AllZone -])" $
+        checkTagLines javaLangSpec [(CommandZone (AllZone []), "//!-] some discarded text")]
+
+    , testCase "Correctly tag command with discarded text (python style)" $
+        checkTagLines ignoreLangSpec [(CommandZone (CorrectionZone []), "##![ teacher code below")]
     ]
 
 
 javaConfig :: Bool -> Tag -> Config
 javaConfig only tag = Config javaLangSpec only tag Nothing
 
-sctTests = testGroup "Sct spec" [javaFileTests, javaFileWithContextsTests, xmlFileTests]
+sctTests = testGroup "Sct spec" [javaFileTests, javaFileWithContextsTests, xmlFileTests, pythonFileTests]
 
 javaFileTests = testGroup "for java files"
     [ testCase "Correctly transform entry when only student" $
@@ -102,7 +120,7 @@ javaFileTests = testGroup "for java files"
     , testCase "Correctly transform entry when student" $
         sct (javaConfig False Student) javaEntry @?= [ "hello all {"
                 , "    //!["
-                , "//    hello teacher"
+                , "    //hello teacher"
                 , "    //!-"
                 , "    hello student"
                 , "    //!]"
@@ -120,6 +138,30 @@ javaFileTests = testGroup "for java files"
                 , "    goodbye all"
                 , "}"
                 ]
+    , testCase "Correctly transform entry with indented comments when student" $
+        sct (javaConfig False Student) javaEntryIndented @?= [ "hello all {"
+                , "    //!["
+                , "    //hello teacher"
+                , "    //!-"
+                , "    hello student"
+                , "    //!]"
+                , "    goodbye all"
+                , "}"
+                ]
+
+    , testCase "Correctly transform entry with indented comments when only student" $
+        sct (javaConfig True Student) javaEntryIndented @?= [ "hello all {"
+                , "    hello student"
+                , "    goodbye all"
+                , "}"
+                ]
+
+    , testCase "Correctly transform entry with indented comments when only correction" $
+        sct (javaConfig True Correction) javaEntryIndented @?= [ "hello all {"
+                , "    hello teacher"
+                , "    goodbye all"
+                , "}"
+                ]
     ]
     where
         javaEntry = [ "hello all {"
@@ -127,6 +169,15 @@ javaFileTests = testGroup "for java files"
                 , "    hello teacher"
                 , "    //!-"
                 , "//    hello student"
+                , "    //!]"
+                , "    goodbye all"
+                , "}"
+                ]
+        javaEntryIndented = [ "hello all {"
+                , "    //!["
+                , "    hello teacher"
+                , "    //!-"
+                , "    //hello student"
                 , "    //!]"
                 , "    goodbye all"
                 , "}"
@@ -213,7 +264,7 @@ xmlFileTests = testGroup "for xml files"
     , testCase "Correctly transform entry when student" $
         sct (xmlConfig False Student) xmlEntry @?= [ "<dependencies>"
                 , "    <!--![-->"
-                , "<!--    <dependency>for teacher</dependency>-->"
+                , "    <!--<dependency>for teacher</dependency>-->"
                 , "    <!--!--->"
                 , "    <dependency>for student</dependency>"
                 , "    <!--!]-->"
@@ -238,6 +289,44 @@ xmlFileTests = testGroup "for xml files"
                 , "<!--    <dependency>for student</dependency>-->"
                 , "    <!--!]-->"
                 , "</dependencies>"
+                ]
+
+pythonLangSpec = LangSpec "#" "##!" ""
+
+pythonConfig :: Bool -> Tag -> Config
+pythonConfig only tag = Config pythonLangSpec only tag Nothing
+
+pythonFileTests = testGroup "for python files"
+    [ testCase "Correctly transform python entry with discarded text when only student" $
+        sct (pythonConfig True Student) pythonEntry @?= [ "def main():"
+                , "    student_code()"
+                , "    common_code()"
+                ]
+
+    , testCase "Correctly transform python entry with discarded text when only correction" $
+        sct (pythonConfig True Correction) pythonEntry @?= [ "def main():"
+                , "    teacher_code()"
+                , "    common_code()"
+                ]
+
+    , testCase "Correctly transform python entry with discarded text when student" $
+        sct (pythonConfig False Student) pythonEntry @?= [ "def main():"
+                , "    ##![ teacher code below"
+                , "    #teacher_code()"
+                , "    ##!- student code below"
+                , "    student_code()"
+                , "    ##!] end"
+                , "    common_code()"
+                ]
+    ]
+    where
+        pythonEntry = [ "def main():"
+                , "    ##![ teacher code below"
+                , "    teacher_code()"
+                , "    ##!- student code below"
+                , "    #student_code()"
+                , "    ##!] end"
+                , "    common_code()"
                 ]
 
 configTests = testGroup "Language specification"

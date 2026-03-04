@@ -20,12 +20,12 @@
         packages.${packageName} = package;
         defaultPackage = package;
         
-        devShell = pkgs.mkShell {
+        devShell = haskellPackages.shellFor {
+          packages = p: [ package ];
           buildInputs = with pkgs; [
             haskellPackages.cabal-install
             haskellPackages.ghcid
             haskellPackages.haskell-language-server
-            haskell.compiler.ghc94 # Choose appropriate GHC version
           ];
         };
       }

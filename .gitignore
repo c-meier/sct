@@ -3,3 +3,6 @@
 .vscode
 dist
 dist-newstyle
+
+result
+.direnv
