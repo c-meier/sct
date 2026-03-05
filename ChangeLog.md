@@ -4,6 +4,7 @@
 
 ## 0.4.0.0
 
+- Add TOML config file support (`.sct.toml` and XDG config dir) for language specs and all settings
 - Add `--formatter-space` option to strip one optional space after comment prefix when uncommenting
 - Add `set` file-level directive support (e.g. `//!set formatter-space`)
 - Allow discarded text after command prefix (e.g. `##![ some comment` or `//!- description`)
