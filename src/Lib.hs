@@ -8,12 +8,14 @@ import qualified Data.Text.IO as TIO
 import ArgsParsing(parse)
 import Sct(sct)
 import SctConfig (generateConfig)
+import SctConfigFile (loadConfigFiles)
 import System.Environment ( getArgs )
 
 mainEntry :: IO ()
 mainEntry = do
     (args, file:_) <- getArgs >>= parse
-    let config = generateConfig args file
+    fileConfig <- loadConfigFiles
+    let config = generateConfig fileConfig args file
     withAFile file (sct config)
 
 -- Apply function f on all lines of a file s and output the transformation

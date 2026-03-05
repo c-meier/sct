@@ -3,16 +3,19 @@
 import Test.Tasty
 import Test.Tasty.HUnit
 import qualified Data.Text as T
+import qualified Data.Map.Strict as Map
 
 import Data.Maybe
 
 import Sct
 import SctConfig
+import SctConfigFile (decodeFileConfig)
+import ArgsParsing (Flag(..))
 import Sct (Zone(ContextZone))
 
 main = defaultMain tests
 
-tests = testGroup "Tests" [tagLinesTests, configTests, sctTests, formatterSpaceTests]
+tests = testGroup "Tests" [tagLinesTests, configTests, sctTests, formatterSpaceTests, fileConfigTests]
 
 javaLangSpec = LangSpec "//" "//!" ""
 ignoreLangSpec = LangSpec "#" "##!" ""
@@ -491,4 +494,173 @@ configTests = testGroup "Language specification"
 
     , testCase "Correctly determine lang spec of .xml file" $
         divineLangSpec "hello.xml" @?= xmlLangSpec
+    ]
+
+fileConfigTests = testGroup "FileConfig"
+    [ testGroup "mergeFileConfigs"
+        [ testCase "Merging two empty configs gives empty" $
+            mergeFileConfigs emptyFileConfig emptyFileConfig @?= emptyFileConfig
+
+        , testCase "Right scalar overrides left" $
+            let a = emptyFileConfig { fcFormatterSpace = Just True }
+                b = emptyFileConfig { fcFormatterSpace = Just False }
+            in fcFormatterSpace (mergeFileConfigs a b) @?= Just False
+
+        , testCase "Left scalar preserved when right is Nothing" $
+            let a = emptyFileConfig { fcOnly = Just True }
+            in fcOnly (mergeFileConfigs a emptyFileConfig) @?= Just True
+
+        , testCase "Right tag overrides left tag" $
+            let a = emptyFileConfig { fcTag = Just Correction }
+                b = emptyFileConfig { fcTag = Just Student }
+            in fcTag (mergeFileConfigs a b) @?= Just Student
+
+        , testCase "Right context overrides left context" $
+            let a = emptyFileConfig { fcContext = Just "part1" }
+                b = emptyFileConfig { fcContext = Just "part2" }
+            in fcContext (mergeFileConfigs a b) @?= Just "part2"
+
+        , testCase "Right languages override left for same extension" $
+            let pySpec1 = LangSpec "#" "##!" ""
+                pySpec2 = LangSpec "#" "#!" ""
+                a = emptyFileConfig { fcLanguages = Map.singleton ".py" pySpec1 }
+                b = emptyFileConfig { fcLanguages = Map.singleton ".py" pySpec2 }
+            in Map.lookup ".py" (fcLanguages (mergeFileConfigs a b)) @?= Just pySpec2
+
+        , testCase "Languages from both sides are merged" $
+            let pySpec = LangSpec "#" "##!" ""
+                jsSpec = LangSpec "//" "//!" ""
+                a = emptyFileConfig { fcLanguages = Map.singleton ".py" pySpec }
+                b = emptyFileConfig { fcLanguages = Map.singleton ".js" jsSpec }
+                merged = mergeFileConfigs a b
+            in do
+                Map.lookup ".py" (fcLanguages merged) @?= Just pySpec
+                Map.lookup ".js" (fcLanguages merged) @?= Just jsSpec
+        ]
+
+    , testGroup "TOML decoding"
+        [ testCase "Decode empty TOML" $
+            decodeFileConfig "" @?= Right emptyFileConfig
+
+        , testCase "Decode formatter-space" $
+            let toml = "formatter-space = true\n"
+            in case decodeFileConfig toml of
+                Right fc -> fcFormatterSpace fc @?= Just True
+                Left err -> assertFailure err
+
+        , testCase "Decode tag as student" $
+            let toml = "tag = \"student\"\n"
+            in case decodeFileConfig toml of
+                Right fc -> fcTag fc @?= Just Student
+                Left err -> assertFailure err
+
+        , testCase "Decode tag as correction" $
+            let toml = "tag = \"correction\"\n"
+            in case decodeFileConfig toml of
+                Right fc -> fcTag fc @?= Just Correction
+                Left err -> assertFailure err
+
+        , testCase "Decode context" $
+            let toml = "context = \"part1\"\n"
+            in case decodeFileConfig toml of
+                Right fc -> fcContext fc @?= Just "part1"
+                Left err -> assertFailure err
+
+        , testCase "Decode language spec" $
+            let toml = T.unlines
+                    [ "[languages.\".jsx\"]"
+                    , "comment-prefix = \"/\""
+                    , "cmd-prefix = \"/!\""
+                    , "comment-suffix = \"\""
+                    ]
+            in case decodeFileConfig toml of
+                Right fc -> Map.lookup ".jsx" (fcLanguages fc)
+                    @?= Just (LangSpec "/" "/!" "")
+                Left err -> assertFailure err
+
+        , testCase "Decode full config" $
+            let toml = T.unlines
+                    [ "formatter-space = true"
+                    , "only = true"
+                    , "tag = \"student\""
+                    , "context = \"part2\""
+                    , ""
+                    , "[languages.\".rs\"]"
+                    , "comment-prefix = \"//\""
+                    , "cmd-prefix = \"//!\""
+                    , "comment-suffix = \"\""
+                    ]
+            in case decodeFileConfig toml of
+                Right fc -> do
+                    fcFormatterSpace fc @?= Just True
+                    fcOnly fc @?= Just True
+                    fcTag fc @?= Just Student
+                    fcContext fc @?= Just "part2"
+                    Map.lookup ".rs" (fcLanguages fc)
+                        @?= Just (LangSpec "//" "//!" "")
+                Left err -> assertFailure err
+        ]
+
+    , testGroup "generateConfig with FileConfig"
+        [ testCase "Empty FileConfig matches old behavior" $
+            let config = generateConfig emptyFileConfig [] "test.java"
+            in do
+                langSpec config @?= javaLangSpec
+                only config @?= False
+                wantedTag config @?= Correction
+                context config @?= Nothing
+                formatterSpace config @?= False
+
+        , testCase "FileConfig provides defaults" $
+            let fc = emptyFileConfig
+                    { fcFormatterSpace = Just True
+                    , fcOnly = Just True
+                    , fcTag = Just Student
+                    , fcContext = Just "part1"
+                    }
+                config = generateConfig fc [] "test.java"
+            in do
+                formatterSpace config @?= True
+                only config @?= True
+                wantedTag config @?= Student
+                context config @?= Just "part1"
+
+        , testCase "CLI flags override FileConfig" $
+            let fc = emptyFileConfig
+                    { fcTag = Just Student
+                    , fcContext = Just "part1"
+                    }
+                config = generateConfig fc [WantCorrection, Context "part2"] "test.java"
+            in do
+                wantedTag config @?= Correction
+                context config @?= Just "part2"
+
+        , testCase "FileConfig lang spec overrides hardcoded" $
+            let customSpec = LangSpec "--" "--!" ""
+                fc = emptyFileConfig { fcLanguages = Map.singleton ".java" customSpec }
+                config = generateConfig fc [] "test.java"
+            in langSpec config @?= customSpec
+
+        , testCase "Hardcoded lang spec used when FileConfig has no override" $
+            let fc = emptyFileConfig { fcLanguages = Map.singleton ".rs" (LangSpec "//" "//!" "") }
+                config = generateConfig fc [] "test.java"
+            in langSpec config @?= javaLangSpec
+
+        , testCase "FileConfig lang spec for custom extension used in sct" $
+            let customSpec = LangSpec ";" ";;!" ""
+                fc = emptyFileConfig { fcLanguages = Map.singleton ".asm" customSpec }
+                config = generateConfig fc [WantStudent, Only] "test.asm"
+                input = [ "mov eax, 1"
+                        , ";;!["
+                        , "add eax, 2"
+                        , ";;!-"
+                        , ";sub eax, 3"
+                        , ";;!]"
+                        , "ret"
+                        ]
+            in sct config input @?= [ "mov eax, 1"
+                                     , "sub eax, 3"
+                                     , "ret"
+                                     ]
+        ]
     ]

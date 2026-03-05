@@ -21,10 +21,11 @@ description:         Please see the README on GitHub at <https://github.com/c-me
 
 dependencies:
 - base >= 4.7 && < 5
+- containers
+- directory
 - filepath
 - text
-- tasty
-- tasty-hunit
+- toml-parser >= 2.0.0.0
 
 library:
   source-dirs: src
@@ -50,3 +51,6 @@ tests:
     - -with-rtsopts=-N
     dependencies:
     - student-correction-transformer
+    - tasty
+    - tasty-hunit
+    - toml-parser
