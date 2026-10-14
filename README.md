@@ -94,6 +94,13 @@ If you want to copy a transformed hierarchy of files into a new directory, you c
 DEST_DIR="../student2021"; fd -t f -H --ignore-file=<(sct -so .sctignore) -x sh -c "mkdir -p $DEST_DIR/{//}; sct -so {} > $DEST_DIR/{}"
 ```
 
+## Preparing a student template from a course repo
+
+`scripts/sct_prepare.py` automates building a student template (and
+optionally publishing it to a starter repo) from a course repository, using
+`sct` under the hood. It's run with `uv run` and configured via `.sct.toml`.
+See [docs/sct-prepare.md](docs/sct-prepare.md) for usage.
+
 ## Build haskell
 
 ```sh

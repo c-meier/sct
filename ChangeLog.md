@@ -2,6 +2,11 @@
 
 ## Unreleased changes
 
+- Add `scripts/sct_prepare.py`, a `uv`-runnable script that builds a student
+  template (and optionally a starter repo) from a course repo's master
+  branch, configured via a `[prepare]` table in `.sct.toml` (see
+  `docs/sct-prepare.md`)
+
 ## 0.4.0.0
 
 - Add TOML config file support (`.sct.toml` and XDG config dir) for language specs and all settings
