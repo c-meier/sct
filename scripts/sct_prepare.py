@@ -81,6 +81,17 @@ STARTER_WT = "worktrees/starter"
 # ---------------------------------------------------------------------------
 
 
+def step(msg: str) -> None:
+    """Print a banner marking the start of a new phase.
+
+    Without this, status prints, inherited git output, and diffs/prompts all
+    run together with no visual boundary, making it hard to tell which step
+    produced which line. One of these per phase in main() gives the output a
+    scannable shape.
+    """
+    print(f"\n==> {msg}")
+
+
 def warn(msg: str) -> None:
     print(f"sct_prepare: warning: {msg}", file=sys.stderr)
 
@@ -314,7 +325,7 @@ def ensure_worktrees(main_branch: str, need_starter: bool) -> None:
             print(f"Worktree {rel_path} exists")
             return
         print(f"Adding worktree {rel_path}")
-        run(["git", "worktree", "add", rel_path, *args])
+        run(["git", "worktree", "add", "-q", rel_path, *args])
 
     # worktrees/main is seeded with `heads/<branch>` rather than `<branch>`:
     # git then resolves it as a plain commit-ish and checks it out detached,
@@ -388,9 +399,9 @@ def prepare_student_worktree(path: Path, student_branch: str) -> None:
             warn(f"git fetch failed, proceeding with possibly-stale remote refs:\n{fetch.stderr.strip()}")
 
         if branch_exists(student_branch):
-            run(["git", "checkout", student_branch])
+            run(["git", "checkout", "-q", student_branch])
         else:
-            run(["git", "checkout", "--orphan", student_branch])
+            run(["git", "checkout", "-q", "--orphan", student_branch])
         run(["git", "clean", "-dxf"])
         git_rm_all(Path.cwd())
 
@@ -513,9 +524,9 @@ def starter_flow(starter_remote: str, remote_name: str) -> None:
                     "or set a different starter-remote-name in .sct.toml, before re-running."
                 )
             print(f"Remote {remote_name} exists")
-            run(["git", "reset", "--hard", "HEAD"])
+            run(["git", "reset", "-q", "--hard", "HEAD"])
             run(["git", "clean", "-dxf"])
-            run(["git", "checkout", "starter_student"])
+            run(["git", "checkout", "-q", "starter_student"])
             run(["git", "pull"])
             git_rm_all(Path.cwd())
             run(["git", "checkout", "student", "--", "."])
@@ -545,7 +556,7 @@ def starter_flow(starter_remote: str, remote_name: str) -> None:
             run(["git", "fetch", remote_name])
 
             print("Creating base branch with starter commit")
-            run(["git", "checkout", "-b", "starter_student", f"{remote_name}/main"])
+            run(["git", "checkout", "-q", "-b", "starter_student", f"{remote_name}/main"])
             run(["git", "merge", "--squash", "--allow-unrelated-histories", "student"])
             run(["git", "commit", "-m", "Starter content"])
             run(["git", "push", "--set-upstream", remote_name, "starter_student:main"])
@@ -583,27 +594,33 @@ def main() -> None:
     starter_remote: str | None = args.starter_remote or os.environ.get(ENV_STARTER_REMOTE) or config.starter_remote
     need_starter = bool(starter_remote) and not args.no_starter
 
+    step("Ensuring worktrees exist")
     ensure_worktrees(config.main_branch, need_starter)
 
+    step("Resetting student worktree")
     prepare_student_worktree(Path(STUDENT_WT), config.student_branch)
 
+    step("Building student template from main branch")
     with pushd(MAIN_WT):
         # Re-detach to the branch's latest tip (see the comment in
         # ensure_worktrees() on why `heads/<branch>` rather than `<branch>`).
-        run(["git", "checkout", f"heads/{config.main_branch}"])
+        run(["git", "checkout", "-q", f"heads/{config.main_branch}"])
         run(["git", "clean", "-dxf"])
         build_student_template(Path.cwd(), (root / STUDENT_WT), phase, config.ignore_file, config.binary_patterns, "sct")
 
     if args.dry_run:
+        step("Showing uncommitted changes (dry run)")
         with pushd(STUDENT_WT):
             run(["git", "add", "-A"])
             subprocess.run(["git", "diff", "--staged"])
         print("Dry run: nothing committed or pushed.")
         return
 
+    step("Committing student changes")
     commit_student_changes(Path(STUDENT_WT), args.yes)
 
     if need_starter and starter_remote is not None:
+        step("Publishing to starter")
         starter_flow(starter_remote, config.starter_remote_name)
 
 

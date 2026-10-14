@@ -101,6 +101,13 @@ full default list and append to it.
 
 ## What it does
 
+Each phase below is marked in the output with a `==> ...` banner, and the
+routine git advisory messages that don't carry useful information
+(`Switched to branch ...`, `HEAD is now at ...`, `Preparing worktree ...`)
+are suppressed — what's left under each banner is either a status line this
+script prints itself, or git/sct output that's actually worth reading (a
+diff, a commit summary, a push result, an error).
+
 1. Ensures `worktrees/student` and `worktrees/main` exist (and
    `worktrees/starter` too, if `starter-remote` is set), adding them as git
    worktrees if missing. `worktrees/main` always has this fixed name,
