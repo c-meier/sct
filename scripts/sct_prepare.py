@@ -524,6 +524,24 @@ def starter_flow(starter_remote: str, remote_name: str) -> None:
                     "or set a different starter-remote-name in .sct.toml, before re-running."
                 )
             print(f"Remote {remote_name} exists")
+        else:
+            print(f"Adding remote {remote_name}")
+            run(["git", "remote", "add", remote_name, starter_remote])
+
+        run(["git", "fetch", remote_name])
+
+        # Key this on the local branch, not on whether remote_name exists:
+        # those can disagree if a previous run added the remote and then
+        # failed before finishing (e.g. the remote had no commits yet) -
+        # the remote persists locally with no local starter_student to show
+        # for it. Re-deriving the branch here instead of assuming it exists
+        # is what lets a retry recover instead of crashing on a `git
+        # checkout` of a branch that was never created.
+        local_branch_exists = (
+            subprocess.run(["git", "show-ref", "--verify", "--quiet", "refs/heads/starter_student"]).returncode == 0
+        )
+
+        if local_branch_exists:
             run(["git", "reset", "-q", "--hard", "HEAD"])
             run(["git", "clean", "-dxf"])
             run(["git", "checkout", "-q", "starter_student"])
@@ -551,10 +569,6 @@ def starter_flow(starter_remote: str, remote_name: str) -> None:
             else:
                 print("Not committed.")
         else:
-            print(f"Adding remote {remote_name}")
-            run(["git", "remote", "add", remote_name, starter_remote])
-            run(["git", "fetch", remote_name])
-
             # A brand-new starter repo (created with no initial commit) has
             # no `main` ref to fetch - there's no scaffold to merge with in
             # that case, so seed main directly from the student content
