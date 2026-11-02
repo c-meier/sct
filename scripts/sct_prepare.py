@@ -555,9 +555,27 @@ def starter_flow(starter_remote: str, remote_name: str) -> None:
             run(["git", "remote", "add", remote_name, starter_remote])
             run(["git", "fetch", remote_name])
 
+            # A brand-new starter repo (created with no initial commit) has
+            # no `main` ref to fetch - there's no scaffold to merge with in
+            # that case, so seed main directly from the student content
+            # instead of basing starter_student on a `main` that doesn't exist.
+            has_main = (
+                subprocess.run(
+                    ["git", "show-ref", "--verify", "--quiet", f"refs/remotes/{remote_name}/main"]
+                ).returncode
+                == 0
+            )
+
             print("Creating base branch with starter commit")
-            run(["git", "checkout", "-q", "-b", "starter_student", f"{remote_name}/main"])
-            run(["git", "merge", "--squash", "--allow-unrelated-histories", "student"])
+            if has_main:
+                run(["git", "checkout", "-q", "-b", "starter_student", f"{remote_name}/main"])
+                run(["git", "merge", "--squash", "--allow-unrelated-histories", "student"])
+            else:
+                warn(f"remote '{remote_name}' has no commits yet; seeding its main branch from student content")
+                run(["git", "checkout", "-q", "--orphan", "starter_student"])
+                run(["git", "clean", "-dxf"])
+                git_rm_all(Path.cwd())
+                run(["git", "checkout", "student", "--", "."])
             run(["git", "commit", "-m", "Starter content"])
             run(["git", "push", "--set-upstream", remote_name, "starter_student:main"])
 
